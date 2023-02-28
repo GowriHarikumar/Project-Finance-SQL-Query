@@ -1,0 +1,111 @@
+SELECT
+    fab.bu_name,
+    cbt.bank_account_transfer_num,
+    cbt.source_code,
+    cbt.payment_function_code,
+    cbt.from_currency_code,
+    cbt.from_amount,
+    TO_CHAR(cbt.transaction_date, 'DD-Mon-YYYY', 'nls_date_language = english') transaction_date,
+    cbt.memo,
+    flv.meaning                status,
+    cbt.payment_currency_code,
+    cbt.payment_amount,
+    cbt.payment_method_code,
+    cba_fm.bank_account_name   from_bank_account_name,
+    cba_fm.bank_account_num
+    || (
+        CASE
+            WHEN cba_fm.iban_number IS NOT NULL THEN
+                ' / ' || cba_fm.iban_number
+        END
+    ) from_bank_account_num,
+    ceb_fm.bank_name           from_bank_name,
+    ceb_fm.bank_number         from_bank_number,
+    cab_fm.bank_branch_name    from_bank_branch_name,
+    cab_fm.branch_number       from_branch_number,
+    cab_fm.eft_swift_code      from_swift_code,
+    (
+        CASE
+            WHEN cab_fm.address_line1 IS NOT NULL THEN
+                cab_fm.address_line1 || ','
+        END
+    ) from_bank_addr1,
+    (
+        CASE
+            WHEN cab_fm.address_line2 IS NOT NULL THEN
+                cab_fm.address_line2 || ','
+        END
+    ) from_bank_addr2,
+    (
+        CASE
+            WHEN cab_fm.address_line3 IS NOT NULL THEN
+                cab_fm.address_line3 || ','
+        END
+    ) from_bank_addr3,
+    cab_fm.city                from_bank_addr_city,
+    cab_fm.zip                 from_bank_addr_zip,
+    cab_fm.country_name        from_bank_addr_country,
+    cba_to.bank_account_name   to_bank_account_name,
+    cba_to.bank_account_num
+    || (
+        CASE
+            WHEN cba_to.iban_number IS NOT NULL THEN
+                ' / ' || cba_to.iban_number
+        END
+    ) to_bank_account_num,
+    ceb_to.bank_name           to_bank_name,
+    ceb_to.bank_number         to_bank_number,
+    cab_to.bank_branch_name    to_bank_branch_name,
+    cab_to.branch_number       to_branch_number,
+    cab_to.eft_swift_code      to_swift_code,
+    (
+        CASE
+            WHEN cab_to.address_line1 IS NOT NULL THEN
+                cab_to.address_line1 || ','
+        END
+    ) to_bank_addr1,
+    (
+        CASE
+            WHEN cab_to.address_line2 IS NOT NULL THEN
+                cab_to.address_line2 || ','
+        END
+    ) to_bank_addr2,
+    (
+        CASE
+            WHEN cab_to.address_line3 IS NOT NULL THEN
+                cab_to.address_line3 || ','
+        END
+    ) to_bank_addr3,
+    cab_to.city                to_bank_addr_city,
+    cab_to.zip                 to_bank_addr_zip,
+    cab_to.country_name        to_bank_addr_country,
+    cbt.created_by             prepared_by
+FROM
+    ce_bat_transfers           cbt,
+    ce_bank_accounts           cba_fm,
+    ce_bank_accounts           cba_to,
+    fnd_lookup_values_vl       flv,
+    ce_all_banks_v             ceb_fm,
+    ce_all_banks_v             ceb_to,
+    ce_all_bank_branches_v     cab_fm,
+    ce_all_bank_branches_v     cab_to,
+    fun_all_business_units_v   fab
+WHERE
+    1 = 1
+    AND cbt.from_bank_acct_id = cba_fm.bank_account_id (+)
+    AND cbt.to_bank_acct_id = cba_to.bank_account_id (+)
+    AND cbt.status_code = flv.lookup_code (+)
+    AND flv.lookup_type (+) = 'ORA_CE_TRANSFER_STATUS'
+    AND cba_fm.bank_id = ceb_fm.bank_party_id (+)
+    AND cba_to.bank_id = ceb_to.bank_party_id (+)
+    AND cba_to.bank_id = cab_fm.bank_party_id (+)
+    AND cba_to.bank_branch_id = cab_fm.branch_party_id (+)
+    AND cba_to.bank_id = cab_to.bank_party_id (+)
+    AND cba_to.bank_branch_id = cab_to.branch_party_id (+)
+    AND cbt.from_org_id = fab.bu_id (+)
+
+---Parameters
+    AND nvl(fab.bu_name, 'NA') = nvl(:p_bu, nvl(fab.bu_name, 'NA'))
+    AND cbt.bank_account_transfer_num = nvl(:p_acct_tran_num, cbt.bank_account_transfer_num)
+ORDER BY
+    cbt.bank_account_transfer_num
